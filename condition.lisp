@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: condition.lisp 564 2010-09-28 09:15:13Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/condition.lisp $
 
 ;;;; See LICENSE for licensing information.
 

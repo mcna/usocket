@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: abcl.lisp 693 2012-08-18 20:59:33Z ehuelsmann $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/backend/abcl.lisp $
 
 ;;;; New ABCL networking support (replacement to old armedbear.lisp)
 ;;;; Author: Chun Tian (binghe)
@@ -116,8 +116,6 @@
 (defvar $+op-read (jfield $*SelectionKey "OP_READ"))
 (defvar $+op-write (jfield $*SelectionKey "OP_WRITE"))
 
-(defconstant +java-true+ (make-immediate-object t :boolean))
-(defconstant +java-false+ (make-immediate-object nil :boolean))
 
 ;;; Wrapper functions (return-type: java-object)
 (defun %get-address (address)
@@ -212,7 +210,8 @@
 	 (setq stream (ext:get-socket-stream socket :element-type element-type)
 	       usocket (make-stream-socket :stream stream :socket socket))
 	 (when nodelay-supplied-p
-	   (jcall $@setTcpNoDelay/1 socket (if nodelay +java-true+ +java-false+)))
+	   (jcall $@setTcpNoDelay/1 socket (if nodelay ;; both t and :if-supported mean java:+true+
+                                           java:+true+ java:+false+)))
 	 (when timeout
 	   (jcall $@setSoTimeout/Socket/1 socket (truncate (* 1000 timeout))))))
       (:datagram ; UDP
@@ -244,7 +243,7 @@
 	 (channel (jstatic $@open/ServerSocketChannel/0 $*ServerSocketChannel))
 	 (socket (jcall $@socket/ServerSocketChannel/0 channel))
 	 (endpoint (jnew $%InetSocketAddress/2 (host-to-inet4 host) (or port 0))))
-    (jcall $@setReuseAddress/1 socket (if reuseaddress +java-true+ +java-false+))
+    (jcall $@setReuseAddress/1 socket (if reuseaddress java:+true+ java:+false+))
     (with-mapped-conditions (socket)
       (if backlog-supplied-p
 	  (jcall $@bind/ServerSocket/2 socket endpoint backlog)
@@ -334,19 +333,17 @@
 	(code-char ub8)
 	ub8)))
 
-(defmethod socket-send ((usocket datagram-usocket) buffer length &key host port)
+(defmethod socket-send ((usocket datagram-usocket) buffer size &key host port (offset 0))
   (let* ((socket (socket usocket))
-	 (real-length (or length (length buffer)))
-	 (byte-array (jnew-array $*byte real-length))
+	 (byte-array (jnew-array $*byte size))
 	 (packet (if (and host port)
-		     (jnew $%DatagramPacket/5 byte-array 0 real-length (host-to-inet4 host) port)
-		     (jnew $%DatagramPacket/3 byte-array 0 real-length))))
+		     (jnew $%DatagramPacket/5 byte-array 0 size (host-to-inet4 host) port)
+		     (jnew $%DatagramPacket/3 byte-array 0 size))))
     ;; prepare sending data
-    (loop for i from 0 below real-length
+    (loop for i from offset below (+ size offset)
        do (setf (jarray-ref byte-array i) (*->byte (aref buffer i))))
     (with-mapped-conditions (usocket)
-      (jcall $@send/1 socket packet))
-    real-length))
+      (jcall $@send/1 socket packet))))
 
 ;;; TODO: return-host and return-port cannot be get ...
 (defmethod socket-receive ((usocket datagram-usocket) buffer length
@@ -398,7 +395,7 @@
     (unwind-protect
 	 (with-mapped-conditions ()
 	   (dolist (channel channels)
-	     (jcall $@configureBlocking/1 channel +java-false+)
+	     (jcall $@configureBlocking/1 channel java:+false+)
 	     (jcall $@register/2 channel selector (logand ops (jcall $@validOps/0 channel))))
 	   (let ((ready-count (if timeout
 				  (jcall $@select/1 selector (truncate (* timeout 1000)))
@@ -413,7 +410,7 @@
 			    (setf (state (gethash channel %wait)) :read)))))))
       (jcall $@close/Selector/0 selector)
       (dolist (channel channels)
-	(jcall $@configureBlocking/1 channel +java-true+)))))
+	(jcall $@configureBlocking/1 channel java:+true+)))))
 
 ;;; WAIT-LIST
 

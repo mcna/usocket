@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: allegro.lisp 686 2012-02-04 17:48:27Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/backend/allegro.lisp $
 
 ;;;; See LICENSE for licensing information.
 
@@ -55,6 +55,8 @@
                        local-host local-port)
   (when timeout (unsupported 'timeout 'socket-connect))
   (when deadline (unsupported 'deadline 'socket-connect))
+  (when (eq nodelay :if-supported)
+    (setf nodelay t))
 
   (let ((socket))
     (setf socket
@@ -149,10 +151,16 @@
   (values (get-peer-address usocket)
           (get-peer-port usocket)))
 
-(defmethod socket-send ((socket datagram-usocket) buffer length &key host port)
-  (with-mapped-conditions (socket)
-    (let ((s (socket socket)))
-      (socket:send-to s buffer length :remote-host host :remote-port port))))
+(defmethod socket-send ((usocket datagram-usocket) buffer size &key host port (offset 0))
+  (with-mapped-conditions (usocket)
+    (let ((s (socket usocket)))
+      (socket:send-to s
+		      (if (zerop offset)
+			  buffer
+			  (subseq buffer offset (+ offset size)))
+		      size
+		      :remote-host host
+		      :remote-port port))))
 
 (defmethod socket-receive ((socket datagram-usocket) buffer length &key)
   (declare (values (simple-array (unsigned-byte 8) (*)) ; buffer

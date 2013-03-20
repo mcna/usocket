@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: cmucl.lisp 685 2012-02-04 15:56:00Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/backend/cmucl.lisp $
 
 ;;;; See LICENSE for licensing information.
 
@@ -56,10 +56,11 @@
 		       (local-port nil local-port-p)
 		       &aux
 		       (local-bind-p (fboundp 'ext::bind-inet-socket)))
-  (declare (ignore nodelay))
   (when timeout (unsupported 'timeout 'socket-connect))
   (when deadline (unsupported 'deadline 'socket-connect))
-  (when nodelay-specified (unsupported 'nodelay 'socket-connect))
+  (when (and nodelay-specified 
+             (not (eq nodelay :if-supported)))
+    (unsupported 'nodelay 'socket-connect))
   (when (and local-host-p (not local-bind-p))
      (unsupported 'local-host 'socket-connect :minimum "Snapshot 2008-08 (19E)"))
   (when (and local-port-p (not local-bind-p))
@@ -173,14 +174,17 @@
    length
    flags))
 
-(defmethod socket-send ((usocket datagram-usocket) buffer length &key host port)
+(defmethod socket-send ((usocket datagram-usocket) buffer size &key host port (offset 0)
+			&aux (real-buffer (if (zerop offset)
+					      buffer
+					      (subseq buffer offset (+ offset size)))))
   (with-mapped-conditions (usocket)
     (if (and host port)
-        (ext:inet-sendto (socket usocket) buffer length (host-to-hbo host) port)
+	(ext:inet-sendto (socket usocket) real-buffer size (host-to-hbo host) port)
 	#-unicode
-	(unix:unix-send (socket usocket) buffer length 0)
+	(unix:unix-send (socket usocket) real-buffer size 0)
 	#+unicode
-	(%unix-send (socket usocket) buffer length 0))))
+	(%unix-send (socket usocket) real-buffer size 0))))
 
 (defmethod socket-receive ((usocket datagram-usocket) buffer length &key)
   (declare (values (simple-array (unsigned-byte 8) (*)) ; buffer

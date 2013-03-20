@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: test-condition.lisp 614 2011-03-30 08:16:10Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/test/test-condition.lisp $
 
 (in-package :usocket-test)
 

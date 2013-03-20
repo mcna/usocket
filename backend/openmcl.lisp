@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: openmcl.lisp 697 2012-11-10 16:14:33Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/backend/openmcl.lisp $
 
 ;;;; See LICENSE for licensing information.
 
@@ -85,6 +85,8 @@
 (defun socket-connect (host port &key (protocol :stream) (element-type 'character)
 		       timeout deadline nodelay
                        local-host local-port)
+  (when (eq nodelay :if-supported)
+    (setf nodelay t))
   (with-mapped-conditions ()
     (ecase protocol
       (:stream
@@ -147,14 +149,25 @@
   (with-mapped-conditions (usocket)
     (close (socket usocket))))
 
-(defmethod socket-send ((usocket datagram-usocket) buffer length &key host port)
+(defmethod socket-send ((usocket datagram-usocket) buffer size &key host port (offset 0))
   (with-mapped-conditions (usocket)
     (if (and host port)
-	(openmcl-socket:send-to (socket usocket) buffer length
+	(openmcl-socket:send-to (socket usocket) buffer size
 				:remote-host (host-to-hbo host)
-				:remote-port port)
-	;; following functino was defined in "vendor/ccl-send.lisp"
-	(ccl::send-for-usocket (socket usocket) buffer length))))
+				:remote-port port
+				:offset offset)
+	;; Clozure CL's socket function SEND-TO doesn't support operations on connected UDP sockets,
+	;; so we have to define our own.
+	(let* ((socket (socket usocket))
+	       (fd (ccl::socket-device socket)))
+	  (multiple-value-setq (buffer offset)
+	    (ccl::verify-socket-buffer buffer offset size))
+	  (ccl::%stack-block ((bufptr size))
+	    (ccl::%copy-ivector-to-ptr buffer offset bufptr 0 size)
+	    (ccl::socket-call socket "send"
+	      (ccl::with-eagain fd :output
+		(ccl::ignoring-eintr
+		  (ccl::check-socket-error (#_send fd bufptr size 0))))))))))
 
 (defmethod socket-receive ((usocket datagram-usocket) buffer length &key)
   (with-mapped-conditions (usocket)
@@ -209,3 +222,20 @@
       (input-available-p (wait-list-waiters wait-list)
 			 (when timeout ticks-timeout))
       wait-list)))
+
+;;; Helper functions for option.lisp
+(defun get-socket-option-reuseaddr (socket)
+  (ccl::int-getsockopt (ccl::socket-device socket)
+                       #$SOL_SOCKET #$SO_REUSEADDR))
+
+(defun set-socket-option-reuseaddr (socket value)
+  (ccl::int-setsockopt (ccl::socket-device socket)
+			 #$SOL_SOCKET #$SO_REUSEADDR value))
+
+(defun get-socket-option-broadcast (socket)
+  (ccl::int-getsockopt (ccl::socket-device socket)
+                       #$SOL_SOCKET #$SO_BROADCAST))
+
+(defun set-socket-option-broadcast (socket value)
+  (ccl::int-setsockopt (ccl::socket-device socket)
+                       #$SOL_SOCKET #$SO_BROADCAST value))

@@ -1,12 +1,16 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: option.lisp 710 2012-12-27 03:13:03Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/option.lisp $
 
-;;;; SOCKET-OPTION, a high-level socket option get/set facility
-;;;; Author: Chun Tian (binghe)
+;;;; SOCKET-OPTION, a high-level socket option get/set framework
 
 ;;;; See LICENSE for licensing information.
 
 (in-package :usocket)
+
+;;; Small utility functions
+(declaim (inline bool->int) (inline int->bool))
+(defun bool->int (bool) (if bool 1 0))
+(defun int->bool (int) (= 1 int))
 
 ;;; Interface definition
 
@@ -36,12 +40,11 @@
   (declare (ignore new-value))
   (socket-option socket option))
 
-;;; Option: RECEIVE-TIMEOUT (RCVTIMEO)
-;;;  Scope: TCP & UDP
+;;; Socket option: RECEIVE-TIMEOUT (SO_RCVTIMEO)
 
 (defmethod socket-option ((usocket stream-usocket)
                           (option (eql :receive-timeout)) &key)
-  (declare (ignore option))
+  (declare (ignorable option))
   (let ((socket (socket usocket)))
     (declare (ignorable socket))
     #+abcl
@@ -63,12 +66,11 @@
     #+sbcl
     (sb-impl::fd-stream-timeout (socket-stream usocket))
     #+scl
-    ()))
+    ())) ; TODO
 
 (defmethod (setf socket-option) (new-value (usocket stream-usocket)
                                            (option (eql :receive-timeout)) &key)
-  (declare (type number new-value)
-	   (ignore option))
+  (declare (type number new-value) (ignorable new-value option))
   (let ((socket (socket usocket))
         (timeout new-value))
     (declare (ignorable socket timeout))
@@ -93,5 +95,111 @@
     (setf (sb-impl::fd-stream-timeout (socket-stream usocket))
           (coerce timeout 'single-float))
     #+scl
-    ()
+    () ; TODO
+    new-value))
+
+;;; Socket option: REUSE-ADDRESS (SO_REUSEADDR), for TCP server
+
+(defmethod socket-option ((usocket stream-server-usocket)
+                          (option (eql :reuse-address)) &key)
+  (declare (ignorable option))
+  (let ((socket (socket usocket)))
+    (declare (ignorable socket))
+    #+abcl
+    () ; TODO
+    #+allegro
+    () ; TODO
+    #+clisp
+    (int->bool (socket:socket-options socket :so-reuseaddr))
+    #+clozure
+    (int->bool (get-socket-option-reuseaddr socket))
+    #+cmu
+    () ; TODO
+    #+lispworks
+    (get-socket-reuse-address socket)
+    #+mcl
+    () ; TODO
+    #+(or ecl sbcl)
+    (sb-bsd-sockets:sockopt-reuse-address socket)
+    #+scl
+    ())) ; TODO
+
+(defmethod (setf socket-option) (new-value (usocket stream-server-usocket)
+                                           (option (eql :reuse-address)) &key)
+  (declare (type boolean new-value) (ignorable new-value option))
+  (let ((socket (socket usocket)))
+    (declare (ignorable socket))
+    #+abcl
+    () ; TODO
+    #+allegro
+    (socket:set-socket-options socket option new-value)
+    #+clisp
+    (socket:socket-options socket :so-reuseaddr (bool->int new-value))
+    #+clozure
+    (set-socket-option-reuseaddr socket (bool->int new-value))
+    #+cmu
+    () ; TODO
+    #+lispworks
+    (set-socket-reuse-address socket new-value)
+    #+mcl
+    () ; TODO
+    #+(or ecl sbcl)
+    (setf (sb-bsd-sockets:sockopt-reuse-address socket) new-value)
+    #+scl
+    () ; TODO
+    new-value))
+
+;;; Socket option: BROADCAST (SO_BROADCAST), for UDP client
+
+(defmethod socket-option ((usocket datagram-usocket)
+                          (option (eql :broadcast)) &key)
+  (declare (ignorable option))
+  (let ((socket (socket usocket)))
+    (declare (ignorable socket))
+    #+abcl
+    () ; TODO
+    #+allegro
+    () ; TODO
+    #+clisp
+    (int->bool (socket:socket-options socket :so-broadcast))
+    #+clozure
+    (int->bool (get-socket-option-broadcast socket))
+    #+cmu
+    () ; TODO
+    #+ecl
+    () ; TODO
+    #+lispworks
+    () ; TODO
+    #+mcl
+    () ; TODO
+    #+sbcl
+    (sb-bsd-sockets:sockopt-broadcast socket)
+    #+scl
+    ())) ; TODO
+
+(defmethod (setf socket-option) (new-value (usocket datagram-usocket)
+                                           (option (eql :broadcast)) &key)
+  (declare (type boolean new-value) (ignorable new-value option))
+  (let ((socket (socket usocket)))
+    (declare (ignorable socket))
+    #+abcl
+    () ; TODO
+    #+allegro
+    (socket:set-socket-options socket option new-value)
+    #+clisp
+    (socket:socket-options socket :so-broadcast (bool->int new-value))
+    #+clozure
+    (set-socket-option-broadcast socket (bool->int new-value))
+    #+cmu
+    () ; TODO
+    #+ecl
+    () ; TODO
+    #+lispworks
+    () ; TODO
+    #+mcl
+    () ; TODO
+    #+sbcl
+    (setf (sb-bsd-sockets:sockopt-broadcast socket) new-value)
+    #+scl
+    () ; TODO
     new-value))

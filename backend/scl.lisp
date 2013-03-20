@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: scl.lisp 685 2012-02-04 15:56:00Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/backend/scl.lisp $
 
 ;;;; See LICENSE for licensing information.
 
@@ -34,8 +34,9 @@
 		       (local-port nil local-port-p)
 		       &aux
 		       (patch-udp-p (fboundp 'ext::inet-socket-send-to)))
-  (declare (ignore nodelay))
-  (when nodelay-specified (unsupported 'nodelay 'socket-connect))
+  (when (and nodelay-specified 
+             (not (eq nodelay :if-supported)))
+    (unsupported 'nodelay 'socket-connect))
   (when deadline (unsupported 'deadline 'socket-connect))
   (when timeout (unsupported 'timeout 'socket-connect))
   (when (and local-host-p (not patch-udp-p))
@@ -135,14 +136,17 @@
 (defmethod socket-close :after ((socket datagram-usocket))
   (setf (%open-p socket) nil))
 
-(defmethod socket-send ((socket datagram-usocket) buffer length &key host port)
-  (let ((s (socket socket))
-	(host (if host (host-to-hbo host))))
+(defmethod socket-send ((usocket datagram-usocket) buffer size &key host port)
+  (let ((s (socket usocket))
+	(host (if host (host-to-hbo host)))
+	(real-buffer (if (zerop offset)
+			 buffer
+			 (subseq buffer offset (+ offset size)))))
     (multiple-value-bind (result errno)
-	(ext:inet-socket-send-to s buffer length
+	(ext:inet-socket-send-to s real-buffer size
 				 :remote-host host :remote-port port)
       (or result
-	  (scl-map-socket-error errno :socket socket)))))
+	  (scl-map-socket-error errno :socket usocket)))))
 
 (defmethod socket-receive ((socket datagram-usocket) buffer length &key)
   (declare (values (simple-array (unsigned-byte 8) (*)) ; buffer

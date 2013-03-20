@@ -1,15 +1,8 @@
 ;;;; -*- Mode: Lisp -*-
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: usocket.asd 705 2012-12-10 15:14:33Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/usocket.asd $
 
 ;;;; See the LICENSE file for licensing information.
-
-(in-package :cl-user)
-
-(defpackage usocket-system
-    (:use :cl :asdf))
-
-(in-package :usocket-system)
 
 (defsystem usocket
     :name "usocket"
@@ -18,26 +11,28 @@
     :version "0.6.0"
     :licence "MIT"
     :description "Universal socket library for Common Lisp"
-    :depends-on (#+sbcl :sb-bsd-sockets)
+    :depends-on (#+(or sbcl ecl) :sb-bsd-sockets)
     :components ((:file "package")
 		 (:module "vendor" :depends-on ("package")
 		  :components ((:file "split-sequence")
 			       #+mcl (:file "kqueue")
-			       #+openmcl (:file "ccl-send")
-                               (:file "spawn-thread")))
-                 (:file "usocket" :depends-on ("vendor"))
-                 (:file "condition" :depends-on ("usocket"))
+			       #+mcl (:file "OpenTransportUDP")
+			       (:file "spawn-thread")))
+		 (:file "usocket" :depends-on ("vendor"))
+		 (:file "condition" :depends-on ("usocket"))
 		 (:module "backend" :depends-on ("condition")
 		  :components (#+abcl		(:file "abcl")
 			       #+clisp		(:file "clisp")
 			       #+cmu		(:file "cmucl")
 			       #+scl		(:file "scl")
-			       #+(or sbcl ecl)	(:file "sbcl")
+			       #+ecl	(:file "ecl")
+			       #+(or sbcl ecl)	(:file "sbcl"
+						 :depends-on (#+ecl "ecl"))
 			       #+lispworks	(:file "lispworks")
 			       #+mcl		(:file "mcl")
 			       #+openmcl	(:file "openmcl")
 			       #+allegro	(:file "allegro")))
-                 (:file "option" :depends-on ("backend"))
+		 (:file "option" :depends-on ("backend"))
 		 (:file "server" :depends-on ("backend" "option"))))
 
 (defmethod perform ((op test-op) (c (eql (find-system :usocket))))

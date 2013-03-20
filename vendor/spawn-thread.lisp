@@ -1,5 +1,5 @@
-;;;; $Id$
-;;;; $URL$
+;;;; $Id: spawn-thread.lisp 614 2011-03-30 08:16:10Z ctian $
+;;;; $URL: svn://common-lisp.net/project/usocket/svn/usocket/tags/0.6.0.1/vendor/spawn-thread.lisp $
 
 ;;;; SPWAN-THREAD from GBBopen's PortableThreads.lisp
 
